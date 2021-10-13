@@ -1,6 +1,6 @@
 # DABNet: Depth-wise Asymmetric Bottleneck for Real-time Semantic Segmentation
 This project contains the Paddle implementation for the proposed 
-DABNet: [[arXiv]](https://arxiv.org/abs/1907.11357). [official repo](https://github.com/Reagan1311/DABNet)
+DABNet: [[arXiv]](https://arxiv.org/abs/1907.11357), [[official repo]](https://github.com/Reagan1311/DABNet)
 
 
 ### Introduction
