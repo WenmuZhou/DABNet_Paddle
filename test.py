@@ -6,12 +6,11 @@ from argparse import ArgumentParser
 # user
 from builders.model_builder import build_model
 from builders.dataset_builder import build_dataset_test
-from utils.utils import save_predict
+from utils.utils import save_predict, init_logger
 from utils.metric import get_iou
-from utils.convert_state import convert_state_dict
 
 
-def test(args, test_loader, model):
+def test(args, test_loader, model, logger):
     """
     args:
       test_loader: loaded for test dataset
@@ -28,7 +27,7 @@ def test(args, test_loader, model):
         with paddle.no_grad():
             output = model(input)
         time_taken = time.time() - start_time
-        print('[%d/%d]  time: %.2f' % (i + 1, total_batches, time_taken))
+        logger.info('[%d/%d]  time: %.2f' % (i + 1, total_batches, time_taken))
         output = output[0].numpy()
         gt = label.numpy()[0].astype(np.uint8)
         output = output.transpose(1, 2, 0)
@@ -44,16 +43,16 @@ def test(args, test_loader, model):
     return meanIoU, per_class_iu
 
 
-def test_model(args):
+def test_model(args, logger):
     """
      main function for testing
      param args: global arguments
      return: None
     """
-    print(args)
+    logger.info(args)
 
     if args.cuda:
-        print("=====> use gpu id: '{}'".format(args.gpus))
+        logger.info("=====> use gpu id: '{}'".format(args.gpus))
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
         if not paddle.is_compiled_with_cuda():
             raise Exception("no GPU found or wrong gpu id, please run without --cuda")
@@ -68,74 +67,21 @@ def test_model(args):
     # load the test set
     datas, testLoader = build_dataset_test(args.dataset, args.num_workers)
 
-    if not args.best:
-        if args.checkpoint:
-            if os.path.isfile(args.checkpoint):
-                print("=====> loading checkpoint '{}'".format(args.checkpoint))
-                checkpoint = paddle.load(args.checkpoint)
-                model.set_state_dict(checkpoint['model'])
-                # model.load_state_dict(convert_state_dict(checkpoint['model']))
-            else:
-                print("=====> no checkpoint found at '{}'".format(args.checkpoint))
-                raise FileNotFoundError("no checkpoint found at '{}'".format(args.checkpoint))
+    if args.checkpoint:
+        if os.path.isfile(args.checkpoint):
+            logger.info("=====> loading checkpoint '{}'".format(args.checkpoint))
+            checkpoint = paddle.load(args.checkpoint)
+            model.set_state_dict(checkpoint['model'])
+            # model.load_state_dict(convert_state_dict(checkpoint['model']))
+        else:
+            print("=====> no checkpoint found at '{}'".format(args.checkpoint))
+            raise FileNotFoundError("no checkpoint found at '{}'".format(args.checkpoint))
 
-        print("=====> beginning validation")
-        print("validation set length: ", len(testLoader))
-        mIOU_val, per_class_iu = test(args, testLoader, model)
-        print(mIOU_val)
-        print(per_class_iu)
-
-    # Get the best test result among the last 10 model records.
-    else:
-        if args.checkpoint:
-            if os.path.isfile(args.checkpoint):
-                dirname, basename = os.path.split(args.checkpoint)
-                epoch = int(os.path.splitext(basename)[0].split('_')[1])
-                mIOU_val = []
-                per_class_iu = []
-                for i in range(epoch - 9, epoch + 1):
-                    basename = 'model_' + str(i) + '.pth'
-                    resume = os.path.join(dirname, basename)
-                    checkpoint = paddle.load(resume)
-                    model.set_state_dict(checkpoint['model'])
-                    print("=====> beginning test the" + basename)
-                    print("validation set length: ", len(testLoader))
-                    mIOU_val_0, per_class_iu_0 = test(args, testLoader, model)
-                    mIOU_val.append(mIOU_val_0)
-                    per_class_iu.append(per_class_iu_0)
-
-                index = list(range(epoch - 9, epoch + 1))[np.argmax(mIOU_val)]
-                print("The best mIoU among the last 10 models is", index)
-                print(mIOU_val)
-                per_class_iu = per_class_iu[np.argmax(mIOU_val)]
-                mIOU_val = np.max(mIOU_val)
-                print(mIOU_val)
-                print(per_class_iu)
-
-            else:
-                print("=====> no checkpoint found at '{}'".format(args.checkpoint))
-                raise FileNotFoundError("no checkpoint found at '{}'".format(args.checkpoint))
-
-    # Save the result
-    if not args.best:
-        model_path = os.path.splitext(os.path.basename(args.checkpoint))
-        args.logFile = 'test_' + model_path[0] + '.txt'
-        logFileLoc = os.path.join(os.path.dirname(args.checkpoint), args.logFile)
-    else:
-        args.logFile = 'test_' + 'best' + str(index) + '.txt'
-        logFileLoc = os.path.join(os.path.dirname(args.checkpoint), args.logFile)
-
-    # Save the result
-    if os.path.isfile(logFileLoc):
-        logger = open(logFileLoc, 'a')
-    else:
-        logger = open(logFileLoc, 'w')
-        logger.write("Mean IoU: %.4f" % mIOU_val)
-        logger.write("\nPer class IoU: ")
-        for i in range(len(per_class_iu)):
-            logger.write("%.4f\t" % per_class_iu[i])
-    logger.flush()
-    logger.close()
+    logger.info("=====> beginning validation")
+    logger.info("validation set length: ", len(testLoader))
+    mIOU_val, per_class_iu = test(args, testLoader, model, logger)
+    logger.info(mIOU_val)
+    logger.info(per_class_iu)
 
 
 if __name__ == '__main__':
@@ -150,7 +96,6 @@ if __name__ == '__main__':
                         help="use the file to load the checkpoint for evaluating or testing ")
     parser.add_argument('--save_seg_dir', type=str, default="./result/",
                         help="saving path of prediction result")
-    parser.add_argument('--best', action='store_true', help="Get the best result among last few checkpoints")
     parser.add_argument('--save', action='store_true', help="Save the predicted image")
     parser.add_argument('--cuda', default=True, help="run on CPU or GPU")
     parser.add_argument("--gpus", default="0", type=str, help="gpu ids (default: 0)")
@@ -165,5 +110,5 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError(
             "This repository now supports two datasets: cityscapes and camvid, %s is not included" % args.dataset)
-
-    test_model(args)
+    logger = init_logger()
+    test_model(args, logger)

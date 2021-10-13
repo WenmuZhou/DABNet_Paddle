@@ -6,11 +6,10 @@ from argparse import ArgumentParser
 # user
 from builders.model_builder import build_model
 from builders.dataset_builder import build_dataset_test
-from utils.utils import save_predict
-from utils.convert_state import convert_state_dict
+from utils.utils import save_predict, init_logger
 
 
-def predict(args, test_loader, model):
+def predict(args, test_loader, model, logger):
     """
     args:
       test_loader: loaded for test dataset, for those that do not provide label on the test set
@@ -25,9 +24,8 @@ def predict(args, test_loader, model):
         with paddle.no_grad():
             output = model(input)
         time_taken = time.time() - start_time
-        print('[%d/%d]  time: %.2f' % (i + 1, total_batches, time_taken))
-        output = output.cpu().data[0].numpy()
-        output = output.transpose(1, 2, 0)
+        logger.info('[%d/%d]  time: %.2f' % (i + 1, total_batches, time_taken))
+        output = output.numpy()[0].transpose(1, 2, 0)
         output = np.asarray(np.argmax(output, axis=2), dtype=np.uint8)
 
         # Save the predict greyscale output for Cityscapes official evaluation
@@ -37,16 +35,16 @@ def predict(args, test_loader, model):
                      output_grey=True, output_color=False, gt_color=False)
 
 
-def test_model(args):
+def test_model(args, logger):
     """
      main function for testing
      param args: global arguments
      return: None
     """
-    print(args)
+    logger.info(args)
 
     if args.cuda:
-        print("=====> use gpu id: '{}'".format(args.gpus))
+        logger.info("=====> use gpu id: '{}'".format(args.gpus))
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
         if not paddle.is_compiled_with_cuda():
             raise Exception("no GPU found or wrong gpu id, please run without --cuda")
@@ -62,17 +60,16 @@ def test_model(args):
 
     if args.checkpoint:
         if os.path.isfile(args.checkpoint):
-            print("=====> loading checkpoint '{}'".format(args.checkpoint))
+            logger.info("=====> loading checkpoint '{}'".format(args.checkpoint))
             checkpoint = paddle.load(args.checkpoint)
             model.set_state_dict(checkpoint['model'])
-            # model.load_state_dict(convert_state_dict(checkpoint['model']))
         else:
-            print("=====> no checkpoint found at '{}'".format(args.checkpoint))
+            logger.info("=====> no checkpoint found at '{}'".format(args.checkpoint))
             raise FileNotFoundError("no checkpoint found at '{}'".format(args.checkpoint))
 
-    print("=====> beginning testing")
-    print("test set length: ", len(testLoader))
-    predict(args, testLoader, model)
+    logger.info("=====> beginning testing")
+    logger.info("test set length: ", len(testLoader))
+    predict(args, testLoader, model, logger)
 
 
 if __name__ == '__main__':
@@ -100,5 +97,5 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError(
             "This repository now supports two datasets: cityscapes and camvid, %s is not included" % args.dataset)
-
-    test_model(args)
+    logger = init_logger()
+    test_model(args, logger)

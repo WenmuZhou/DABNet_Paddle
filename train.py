@@ -17,7 +17,6 @@ from utils.utils import setup_seed, init_weight, netParams, init_logger
 from utils.metric import get_iou
 from utils.loss import CrossEntropyLoss2d, ProbOhemCrossEntropy2d
 from utils.lr_scheduler import WarmupPolyLR
-from utils.convert_state import convert_state_dict
 
 GLOBAL_SEED = 1234
 
@@ -160,7 +159,6 @@ def train_model(args, logger):
             checkpoint = paddle.load(args.resume)
             start_epoch = checkpoint['epoch']
             model.set_state_dict(checkpoint['model'])
-            # model.load_state_dict(convert_state_dict(checkpoint['model']))
             logger.info("=====> loaded checkpoint '{}' (epoch {})".format(args.resume, checkpoint['epoch']))
         else:
             logger.info("=====> no checkpoint found at '{}'".format(args.resume))
@@ -193,7 +191,7 @@ def train_model(args, logger):
         lossTr, lr = train(args, trainLoader, model, criteria, optimizer, scheduler, epoch, logger)
         lossTr_list.append(lossTr)
 
-        model_file_name = os.path.join(args.savedir, '/latest.params')
+        model_file_name = os.path.join(args.savedir, 'latest.params')
         state = {"epoch": epoch + 1, "model": model.state_dict()}
         paddle.save(state, model_file_name)
 
@@ -209,7 +207,7 @@ def train_model(args, logger):
                                                                                                       mIOU_val, lr))
             if best_metric['mIOU'] < mIOU_val:
                 best_metric = {'mIOU': mIOU_val, 'epoch': epoch + 1}
-                model_file_name = os.path.join(args.savedir, '/best.params')
+                model_file_name = os.path.join(args.savedir, 'best.params')
                 paddle.save(state, model_file_name)
             logger.info('cur mIOU: {:.6f}, best mIOU: {:.6f}'.format(mIOU_val, best_metric['mIOU']))
         else:

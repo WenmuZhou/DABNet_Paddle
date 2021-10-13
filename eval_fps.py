@@ -8,17 +8,17 @@ from builders.model_builder import build_model
 def compute_speed(model, input_size, iteration=100):
 
     model.eval()
-    model = model.cuda()
 
     input = paddle.randn(list(input_size))
-
-    for _ in range(50):
-        model(input)
+    with paddle.no_grad():
+        for _ in range(50):
+            model(input)
 
     print('=========Speed Testing=========')
     t_start = time.time()
-    for _ in range(iteration):
-        model(input)
+    with paddle.no_grad():
+        for _ in range(iteration):
+            model(input)
     elapsed_time = time.time() - t_start
 
     speed_time = elapsed_time / iteration * 1000
