@@ -91,7 +91,7 @@ python eval_fps.py 512,1024
 |Dataset|Pretrained|Train type|mIoU|FPS|model|
 |---|---|---|---|---|---|
 |Cityscapes(Fine) torch|from scratch|train|**69.57%**|104|[GoogleDrive](https://drive.google.com/open?id=1ZKGBQogSqxyKD-QIJgzyDXw2TR0HUePA)|
-|Cityscapes(Fine) paddle|from scratch|train|**69.63%**|104|[GoogleDrive](https://drive.google.com/open?id=1ZKGBQogSqxyKD-QIJgzyDXw2TR0HUePA)|
+|Cityscapes(Fine) paddle|from scratch|train|**69.63%**|104|[best.params](./best.params)|
 
 - qualitative segmentation examples:
 
