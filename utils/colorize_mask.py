@@ -1,5 +1,5 @@
 from PIL import Image
-import torch
+import paddle
 import numpy as np
 
 cityscapes_palette = [128, 64, 128, 244, 35, 232, 70, 70, 70, 102, 102, 156, 190, 153, 153, 153, 153, 153, 250, 170, 30,
@@ -39,7 +39,7 @@ def camvid_colorize_mask(mask):
 class VOCColorize(object):
     def __init__(self, n=22):
         self.cmap = voc_color_map(22)
-        self.cmap = torch.from_numpy(self.cmap[:n])
+        self.cmap = paddle.to_tensor(self.cmap[:n])
 
     def __call__(self, gray_image):
         size = gray_image.shape

@@ -1,22 +1,31 @@
 import os
+import sys
+import logging
 import random
 import numpy as np
 from PIL import Image
-import torch
-import torch.nn as nn
+import paddle
+import paddle.nn as nn
 from utils.colorize_mask import cityscapes_colorize_mask, camvid_colorize_mask
+
+
+def kaiming_normal_init(param, **kwargs):
+    initializer = nn.initializer.KaimingNormal(**kwargs)
+    initializer(param, param.block)
 
 
 def __init_weight(feature, conv_init, norm_layer, bn_eps, bn_momentum,
                   **kwargs):
-    for name, m in feature.named_modules():
-        if isinstance(m, (nn.Conv2d, nn.Conv3d)):
-            conv_init(m.weight, **kwargs)
+    for m in feature.sublayers():
+        if isinstance(m, (nn.Conv2D, nn.Conv3D)):
+            conv_init(m.weight)
         elif isinstance(m, norm_layer):
             m.eps = bn_eps
             m.momentum = bn_momentum
-            nn.init.constant_(m.weight, 1)
-            nn.init.constant_(m.bias, 0)
+            value_init = nn.initializer.Constant(1)
+            value_init(m.weight)
+            bias_init = nn.initializer.Constant(0)
+            bias_init(m.bias)
 
 
 def init_weight(module_list, conv_init, norm_layer, bn_eps, bn_momentum,
@@ -31,11 +40,9 @@ def init_weight(module_list, conv_init, norm_layer, bn_eps, bn_momentum,
 
 
 def setup_seed(seed):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    paddle.seed(seed)
     np.random.seed(seed)
     random.seed(seed)
-    torch.backends.cudnn.deterministic = True
 
 
 def save_predict(output, gt, img_name, dataset, save_path, output_grey=False, output_color=True, gt_color=False):
@@ -69,10 +76,31 @@ def netParams(model):
     """
     total_paramters = 0
     for parameter in model.parameters():
-        i = len(parameter.size())
+        i = len(parameter.shape)
         p = 1
         for j in range(i):
-            p *= parameter.size(j)
+            p *= parameter.shape[j]
         total_paramters += p
 
     return total_paramters
+
+
+def init_logger(log_file=None, name='root', log_level=logging.DEBUG):
+    logger = logging.getLogger(name)
+
+    formatter = logging.Formatter(
+        '[%(asctime)s] %(name)s %(levelname)s: %(message)s',
+        datefmt="%Y/%m/%d %H:%M:%S")
+
+    stream_handler = logging.StreamHandler(stream=sys.stdout)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+    if log_file is not None:
+        dir_name = os.path.dirname(log_file)
+        if len(dir_name) > 0 and not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        file_handler = logging.FileHandler(log_file, 'w')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    logger.setLevel(log_level)
+    return logger

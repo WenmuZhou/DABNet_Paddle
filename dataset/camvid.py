@@ -2,7 +2,7 @@ import os.path as osp
 import numpy as np
 import random
 import cv2
-from torch.utils import data
+from paddle.io import Dataset
 import pickle
 
 """
@@ -12,7 +12,7 @@ resize images to 360x480 pixels for training and testing.
 """
 
 
-class CamVidDataSet(data.Dataset):
+class CamVidDataSet(Dataset):
     """ 
        CamVidDataSet is employed to load train set
        Args:
@@ -21,8 +21,9 @@ class CamVidDataSet(data.Dataset):
 
     """
 
-    def __init__(self, root='', list_path='', max_iters=None, crop_size=(360, 360),
-                 mean=(128, 128, 128), scale=True, mirror=True, ignore_label=11):
+    def __init__(self, root='', list_path='', max_iters=None, crop_size=(360, 360), mean=(128, 128, 128), scale=True,
+                 mirror=True, ignore_label=11):
+        super().__init__()
         self.root = root
         self.list_path = list_path
         self.crop_h, self.crop_w = crop_size
@@ -100,7 +101,7 @@ class CamVidDataSet(data.Dataset):
         return image.copy(), label.copy(), np.array(size), name
 
 
-class CamVidValDataSet(data.Dataset):
+class CamVidValDataSet(Dataset):
     """ 
        CamVidValDataSet is employed to load val set
        Args:
@@ -109,8 +110,8 @@ class CamVidValDataSet(data.Dataset):
 
     """
 
-    def __init__(self, root='', list_path='',
-                 f_scale=1, mean=(128, 128, 128), ignore_label=11):
+    def __init__(self, root='', list_path='', f_scale=1, mean=(128, 128, 128), ignore_label=11):
+        super().__init__()
         self.root = root
         self.list_path = list_path
         self.ignore_label = ignore_label
@@ -157,7 +158,7 @@ class CamVidValDataSet(data.Dataset):
         return image.copy(), label.copy(), np.array(size), name
 
 
-class CamVidTestDataSet(data.Dataset):
+class CamVidTestDataSet(Dataset):
     """ 
        CamVidTestDataSet is employed to load test set
        Args:
@@ -166,8 +167,8 @@ class CamVidTestDataSet(data.Dataset):
 
     """
 
-    def __init__(self, root='', list_path='',
-                 mean=(128, 128, 128), ignore_label=11):
+    def __init__(self, root='', list_path='', mean=(128, 128, 128), ignore_label=11):
+        super().__init__()
         self.root = root
         self.list_path = list_path
         self.ignore_label = ignore_label

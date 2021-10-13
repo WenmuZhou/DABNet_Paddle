@@ -1,9 +1,7 @@
 import os
 import time
-import torch
+import paddle
 import numpy as np
-import torch.backends.cudnn as cudnn
-from torch.autograd import Variable
 from argparse import ArgumentParser
 # user
 from builders.model_builder import build_model
@@ -23,11 +21,9 @@ def predict(args, test_loader, model):
     model.eval()
     total_batches = len(test_loader)
     for i, (input, size, name) in enumerate(test_loader):
-        with torch.no_grad():
-            input_var = Variable(input).cuda()
         start_time = time.time()
-        output = model(input_var)
-        torch.cuda.synchronize()
+        with paddle.no_grad():
+            output = model(input)
         time_taken = time.time() - start_time
         print('[%d/%d]  time: %.2f' % (i + 1, total_batches, time_taken))
         output = output.cpu().data[0].numpy()
@@ -52,15 +48,11 @@ def test_model(args):
     if args.cuda:
         print("=====> use gpu id: '{}'".format(args.gpus))
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
-        if not torch.cuda.is_available():
+        if not paddle.is_compiled_with_cuda():
             raise Exception("no GPU found or wrong gpu id, please run without --cuda")
 
     # build the model
     model = build_model(args.model, num_classes=args.classes)
-
-    if args.cuda:
-        model = model.cuda()  # using GPU for inference
-        cudnn.benchmark = True
 
     if not os.path.exists(args.save_seg_dir):
         os.makedirs(args.save_seg_dir)
@@ -71,8 +63,8 @@ def test_model(args):
     if args.checkpoint:
         if os.path.isfile(args.checkpoint):
             print("=====> loading checkpoint '{}'".format(args.checkpoint))
-            checkpoint = torch.load(args.checkpoint)
-            model.load_state_dict(checkpoint['model'])
+            checkpoint = paddle.load(args.checkpoint)
+            model.set_state_dict(checkpoint['model'])
             # model.load_state_dict(convert_state_dict(checkpoint['model']))
         else:
             print("=====> no checkpoint found at '{}'".format(args.checkpoint))

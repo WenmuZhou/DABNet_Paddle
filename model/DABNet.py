@@ -1,36 +1,35 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import paddle
+import paddle.nn as nn
+import paddle.nn.functional as F
 
 __all__ = ["DABNet"]
 
 
-class Conv(nn.Module):
-    def __init__(self, nIn, nOut, kSize, stride, padding, dilation=(1, 1), groups=1, bn_acti=False, bias=False):
+class Conv(nn.Layer):
+    def __init__(self, nIn, nOut, kSize, stride, padding, dilation=1, groups=1, bn_acti=False, bias=False):
         super().__init__()
 
         self.bn_acti = bn_acti
 
-        self.conv = nn.Conv2d(nIn, nOut, kernel_size=kSize,
+        self.conv = nn.Conv2D(nIn, nOut, kernel_size=kSize,
                               stride=stride, padding=padding,
-                              dilation=dilation, groups=groups, bias=bias)
+                              dilation=dilation, groups=groups, bias_attr=bias)
 
         if self.bn_acti:
             self.bn_prelu = BNPReLU(nOut)
 
     def forward(self, input):
         output = self.conv(input)
-
         if self.bn_acti:
             output = self.bn_prelu(output)
 
         return output
 
 
-class BNPReLU(nn.Module):
+class BNPReLU(nn.Layer):
     def __init__(self, nIn):
         super().__init__()
-        self.bn = nn.BatchNorm2d(nIn, eps=1e-3)
+        self.bn = nn.BatchNorm2D(nIn, epsilon=1e-3)
         self.acti = nn.PReLU(nIn)
 
     def forward(self, input):
@@ -40,7 +39,7 @@ class BNPReLU(nn.Module):
         return output
 
 
-class DABModule(nn.Module):
+class DABModule(nn.Layer):
     def __init__(self, nIn, d=1, kSize=3, dkSize=3):
         super().__init__()
 
@@ -71,11 +70,10 @@ class DABModule(nn.Module):
         output = br1 + br2
         output = self.bn_relu_2(output)
         output = self.conv1x1(output)
-
         return output + input
 
 
-class DownSamplingBlock(nn.Module):
+class DownSamplingBlock(nn.Layer):
     def __init__(self, nIn, nOut):
         super().__init__()
         self.nIn = nIn
@@ -87,27 +85,27 @@ class DownSamplingBlock(nn.Module):
             nConv = nOut
 
         self.conv3x3 = Conv(nIn, nConv, kSize=3, stride=2, padding=1)
-        self.max_pool = nn.MaxPool2d(2, stride=2)
+        self.max_pool = nn.MaxPool2D(2, stride=2)
         self.bn_prelu = BNPReLU(nOut)
 
     def forward(self, input):
         output = self.conv3x3(input)
-
         if self.nIn < self.nOut:
             max_pool = self.max_pool(input)
-            output = torch.cat([output, max_pool], 1)
+            output = paddle.concat([output, max_pool], 1)
 
         output = self.bn_prelu(output)
 
         return output
 
 
-class InputInjection(nn.Module):
+class InputInjection(nn.Layer):
     def __init__(self, ratio):
         super().__init__()
-        self.pool = nn.ModuleList()
+        self.pool = []
         for i in range(0, ratio):
-            self.pool.append(nn.AvgPool2d(3, stride=2, padding=1))
+            self.pool.append(
+                self.add_sublayer('InputInjection_{}'.format(i), nn.AvgPool2D(3, stride=2, padding=1, exclusive=False)))
 
     def forward(self, input):
         for pool in self.pool:
@@ -116,7 +114,7 @@ class InputInjection(nn.Module):
         return input
 
 
-class DABNet(nn.Module):
+class DABNet(nn.Layer):
     def __init__(self, classes=19, block_1=3, block_2=6):
         super().__init__()
         self.init_conv = nn.Sequential(
@@ -135,7 +133,7 @@ class DABNet(nn.Module):
         self.downsample_1 = DownSamplingBlock(32 + 3, 64)
         self.DAB_Block_1 = nn.Sequential()
         for i in range(0, block_1):
-            self.DAB_Block_1.add_module("DAB_Module_1_" + str(i), DABModule(64, d=2))
+            self.DAB_Block_1.add_sublayer("DAB_Module_1_" + str(i), DABModule(64, d=2))
         self.bn_prelu_2 = BNPReLU(128 + 3)
 
         # DAB Block 2
@@ -143,33 +141,32 @@ class DABNet(nn.Module):
         self.downsample_2 = DownSamplingBlock(128 + 3, 128)
         self.DAB_Block_2 = nn.Sequential()
         for i in range(0, block_2):
-            self.DAB_Block_2.add_module("DAB_Module_2_" + str(i),
-                                        DABModule(128, d=dilation_block_2[i]))
+            self.DAB_Block_2.add_sublayer("DAB_Module_2_" + str(i),
+                                          DABModule(128, d=dilation_block_2[i]))
         self.bn_prelu_3 = BNPReLU(256 + 3)
 
         self.classifier = nn.Sequential(Conv(259, classes, 1, 1, padding=0))
 
     def forward(self, input):
-
         output0 = self.init_conv(input)
-
         down_1 = self.down_1(input)
         down_2 = self.down_2(input)
         down_3 = self.down_3(input)
 
-        output0_cat = self.bn_prelu_1(torch.cat([output0, down_1], 1))
+        output0_cat = self.bn_prelu_1(paddle.concat([output0, down_1], 1))
 
         # DAB Block 1
         output1_0 = self.downsample_1(output0_cat)
         output1 = self.DAB_Block_1(output1_0)
-        output1_cat = self.bn_prelu_2(torch.cat([output1, output1_0, down_2], 1))
+
+        output1_cat = self.bn_prelu_2(paddle.concat([output1, output1_0, down_2], 1))
 
         # DAB Block 2
         output2_0 = self.downsample_2(output1_cat)
         output2 = self.DAB_Block_2(output2_0)
-        output2_cat = self.bn_prelu_3(torch.cat([output2, output2_0, down_3], 1))
+        output2_cat = self.bn_prelu_3(paddle.concat([output2, output2_0, down_3], 1))
 
         out = self.classifier(output2_cat)
-        out = F.interpolate(out, input.size()[2:], mode='bilinear', align_corners=False)
+        out = F.interpolate(out, input.shape[2:], mode='bilinear', align_corners=False)
 
         return out

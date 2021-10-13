@@ -1,31 +1,24 @@
 import time
-import torch
-import torch.backends.cudnn as cudnn
+import paddle
 
 from argparse import ArgumentParser
 from builders.model_builder import build_model
 
 
-def compute_speed(model, input_size, device, iteration=100):
-    torch.cuda.set_device(device)
-    cudnn.benchmark = True
+def compute_speed(model, input_size, iteration=100):
 
     model.eval()
     model = model.cuda()
 
-    input = torch.randn(*input_size, device=device)
+    input = paddle.randn(list(input_size))
 
     for _ in range(50):
         model(input)
 
     print('=========Speed Testing=========')
-    torch.cuda.synchronize()
-    torch.cuda.synchronize()
     t_start = time.time()
     for _ in range(iteration):
         model(input)
-    torch.cuda.synchronize()
-    torch.cuda.synchronize()
     elapsed_time = time.time() - t_start
 
     speed_time = elapsed_time / iteration * 1000
@@ -50,4 +43,5 @@ if __name__ == '__main__':
 
     h, w = map(int, args.size.split(','))
     model = build_model(args.model, num_classes=args.classes)
-    compute_speed(model, (args.batch_size, args.num_channels, h, w), int(args.gpus), iteration=args.iter)
+    paddle.set_device('gpu:{}'.format(int(args.gpus)))
+    compute_speed(model, (args.batch_size, args.num_channels, h, w), iteration=args.iter)

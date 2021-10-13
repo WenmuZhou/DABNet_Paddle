@@ -1,6 +1,6 @@
 import os
 import pickle
-from torch.utils import data
+from paddle.io import DataLoader
 from dataset.cityscapes import CityscapesDataSet, CityscapesTrainInform, CityscapesValDataSet, CityscapesTestDataSet
 from dataset.camvid import CamVidDataSet, CamVidValDataSet, CamVidTrainInform, CamVidTestDataSet
 
@@ -35,30 +35,28 @@ def build_dataset_train(dataset, input_size, batch_size, train_type, random_scal
 
     if dataset == "cityscapes":
 
-        trainLoader = data.DataLoader(
+        trainLoader = DataLoader(
             CityscapesDataSet(data_dir, train_data_list, crop_size=input_size, scale=random_scale,
                               mirror=random_mirror, mean=datas['mean']),
-            batch_size=batch_size, shuffle=True, num_workers=num_workers,
-            pin_memory=True, drop_last=True)
+            batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
 
-        valLoader = data.DataLoader(
+        valLoader = DataLoader(
             CityscapesValDataSet(data_dir, val_data_list, f_scale=1, mean=datas['mean']),
-            batch_size=1, shuffle=True, num_workers=num_workers, pin_memory=True,
+            batch_size=1, shuffle=True, num_workers=num_workers,
             drop_last=True)
 
         return datas, trainLoader, valLoader
 
     elif dataset == "camvid":
 
-        trainLoader = data.DataLoader(
+        trainLoader = DataLoader(
             CamVidDataSet(data_dir, train_data_list, crop_size=input_size, scale=random_scale,
                           mirror=random_mirror, mean=datas['mean']),
-            batch_size=batch_size, shuffle=True, num_workers=num_workers,
-            pin_memory=True, drop_last=True)
+            batch_size=batch_size, shuffle=True, num_workers=num_workers,drop_last=True)
 
-        valLoader = data.DataLoader(
+        valLoader = DataLoader(
             CamVidValDataSet(data_dir, val_data_list, f_scale=1, mean=datas['mean']),
-            batch_size=1, shuffle=True, num_workers=num_workers, pin_memory=True)
+            batch_size=1, shuffle=True, num_workers=num_workers)
 
         return datas, trainLoader, valLoader
 
@@ -94,21 +92,21 @@ def build_dataset_test(dataset, num_workers, none_gt=False):
         # for cityscapes, if test on validation set, set none_gt to False
         # if test on the test set, set none_gt to True
         if none_gt:
-            testLoader = data.DataLoader(
+            testLoader = DataLoader(
                 CityscapesTestDataSet(data_dir, test_data_list, mean=datas['mean']),
-                batch_size=1, shuffle=False, num_workers=num_workers, pin_memory=True)
+                batch_size=1, shuffle=False, num_workers=num_workers)
         else:
             test_data_list = os.path.join(data_dir, dataset + '_val' + '_list.txt')
-            testLoader = data.DataLoader(
+            testLoader = DataLoader(
                 CityscapesValDataSet(data_dir, test_data_list, mean=datas['mean']),
-                batch_size=1, shuffle=False, num_workers=num_workers, pin_memory=True)
+                batch_size=1, shuffle=False, num_workers=num_workers)
 
         return datas, testLoader
 
     elif dataset == "camvid":
 
-        testLoader = data.DataLoader(
+        testLoader = DataLoader(
             CamVidValDataSet(data_dir, test_data_list, mean=datas['mean']),
-            batch_size=1, shuffle=False, num_workers=num_workers, pin_memory=True)
+            batch_size=1, shuffle=False, num_workers=num_workers)
 
         return datas, testLoader
