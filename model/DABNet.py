@@ -152,21 +152,15 @@ class DABNet(nn.Layer):
         down_1 = self.down_1(input)
         down_2 = self.down_2(input)
         down_3 = self.down_3(input)
-
         output0_cat = self.bn_prelu_1(paddle.concat([output0, down_1], 1))
-
         # DAB Block 1
         output1_0 = self.downsample_1(output0_cat)
         output1 = self.DAB_Block_1(output1_0)
-
         output1_cat = self.bn_prelu_2(paddle.concat([output1, output1_0, down_2], 1))
-
         # DAB Block 2
         output2_0 = self.downsample_2(output1_cat)
         output2 = self.DAB_Block_2(output2_0)
         output2_cat = self.bn_prelu_3(paddle.concat([output2, output2_0, down_3], 1))
-
         out = self.classifier(output2_cat)
-        out = F.interpolate(out, input.shape[2:], mode='bilinear', align_corners=False)
-
+        out = F.interpolate(out, scale_factor=8, mode='bilinear', align_corners=False)
         return out

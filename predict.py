@@ -22,7 +22,6 @@ def predict(args, test_loader, model, logger):
     for i, (input, size, name) in enumerate(test_loader):
         start_time = time.time()
         with paddle.no_grad():
-            print(input.shape)
             output = model(input)
         time_taken = time.time() - start_time
         logger.info('[%d/%d]  time: %.2f' % (i + 1, total_batches, time_taken))

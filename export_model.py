@@ -42,7 +42,7 @@ def main(args):
             raise FileNotFoundError("no checkpoint found at '{}'".format(args.checkpoint))
     model.eval()
 
-    infer_shape = [3, 1024, 2048]
+    infer_shape = [3, -1, -1]
     model = to_static(
         model,
         input_spec=[
