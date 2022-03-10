@@ -45,15 +45,15 @@ You need to download the two dataset——CamVid and Cityscapes, and put the fil
 - You can run: `python train.py -h` to check the detail of optional arguments.
 Basically, in the `train.py`, you can set the dataset, train type, epochs and batch size, etc.
 ```
-python train.py --dataset ${camvid, cityscapes} --train_type ${train, trainval} --max_epochs ${EPOCHS} --batch_size ${BATCH_SIZE} --lr ${LR} --resume ${CHECKPOINT_FILE}
+python train.py --dataset ${camvid, cityscapes} --data_root ${dataset_path} --train_type ${train, trainval} --max_epochs ${EPOCHS} --batch_size ${BATCH_SIZE} --lr ${LR} --resume ${CHECKPOINT_FILE}
 ```
 - training on Cityscapes train set
 ```
-python train.py --dataset cityscapes
+python train.py --dataset cityscapes --data_root ${dataset_path}
 ```
 - training on CamVid train and val set
 ```
-python train.py --dataset camvid --train_type trainval --max_epochs 1000 --lr 1e-3 --batch_size 16
+python train.py --dataset camvid --data_root ${dataset_path} --train_file ${train_file_path} --val_file ${val_file_path} --max_epochs 1000 --lr 1e-3 --batch_size 16
 ```
 - During training course, every 50 epochs, we will record the mean IoU of train set, validation set and training loss to draw a plot, so you can check whether the training process is normal.
 
@@ -66,15 +66,15 @@ Val mIoU vs Epochs            |  Train loss vs Epochs
 
 (PS: Based on the graphs, we think that training is not saturated yet, maybe the LR is too large, so you can change the hyper-parameter to get better result)
 
-### Testing
+### Eval
 - After training, the checkpoint will be saved at `checkpoint` folder, you can use `test.py` to get the result.
 ```
-python test.py --dataset ${camvid, cityscapes} --checkpoint ${CHECKPOINT_FILE}
+python eval.py --dataset ${camvid, cityscapes} --data_root ${dataset_path} --val_file ${val_file_path} --checkpoint ${CHECKPOINT_FILE}
 ```
-### Evaluation
+### Predict
 - For those dataset that do not provide label on the test set (e.g. Cityscapes), you can use `predict.py` to save all the output images, then submit to official webpage for evaluation.
 ```
-python predict.py --checkpoint ${CHECKPOINT_FILE}
+python predict.py --dataset ${camvid, cityscapes} --data_root ${dataset_path} --val_file ${val_file_path} --checkpoint ${CHECKPOINT_FILE}
 ```
 
 

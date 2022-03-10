@@ -65,7 +65,7 @@ def test_model(args, logger):
             os.makedirs(args.save_seg_dir)
 
     # load the test set
-    datas, testLoader = build_dataset_test(args.dataset, args.num_workers)
+    datas, testLoader = build_dataset_test(args)
 
     if args.checkpoint:
         if os.path.isfile(args.checkpoint):
@@ -78,7 +78,7 @@ def test_model(args, logger):
             raise FileNotFoundError("no checkpoint found at '{}'".format(args.checkpoint))
 
     logger.info("=====> beginning validation")
-    logger.info("validation set length: ", len(testLoader))
+    logger.info("validation set length: {}".format(len(testLoader)))
     mIOU_val, per_class_iu = test(args, testLoader, model, logger)
     logger.info(mIOU_val)
     logger.info(per_class_iu)
@@ -88,6 +88,9 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--model', default="DABNet", help="model name: Context Guided Network (CGNet)")
     parser.add_argument('--dataset', default="cityscapes", help="dataset: cityscapes or camvid")
+    parser.add_argument('--data_root', default="", help="dataset folder")
+    parser.add_argument('--val_file', default="dataset/cityscapes/cityscapes_val_list.txt", help="dataset folder")
+    parser.add_argument('--inform_data_file', default="dataset/inform/cityscapes_inform.pkl", help="dataset folder")
     parser.add_argument('--num_workers', type=int, default=1, help="the number of parallel threads")
     parser.add_argument('--batch_size', type=int, default=1,
                         help=" the batch_size is set to 1 when evaluating or testing")

@@ -22,6 +22,7 @@ def predict(args, test_loader, model, logger):
     for i, (input, size, name) in enumerate(test_loader):
         start_time = time.time()
         with paddle.no_grad():
+            print(input.shape)
             output = model(input)
         time_taken = time.time() - start_time
         logger.info('[%d/%d]  time: %.2f' % (i + 1, total_batches, time_taken))
@@ -32,7 +33,7 @@ def predict(args, test_loader, model, logger):
         # Modify image name to meet official requirement
         name[0] = name[0].rsplit('_', 1)[0] + '*'
         save_predict(output, None, name[0], args.dataset, args.save_seg_dir,
-                     output_grey=True, output_color=False, gt_color=False)
+                     output_grey=False, output_color=True, gt_color=False)
 
 
 def test_model(args, logger):
@@ -56,7 +57,7 @@ def test_model(args, logger):
         os.makedirs(args.save_seg_dir)
 
     # load the test set
-    datas, testLoader = build_dataset_test(args.dataset, args.num_workers, none_gt=True)
+    datas, testLoader = build_dataset_test(args, none_gt=True)
 
     if args.checkpoint:
         if os.path.isfile(args.checkpoint):
@@ -68,7 +69,7 @@ def test_model(args, logger):
             raise FileNotFoundError("no checkpoint found at '{}'".format(args.checkpoint))
 
     logger.info("=====> beginning testing")
-    logger.info("test set length: ", len(testLoader))
+    logger.info("test set length: {}".format(len(testLoader)))
     predict(args, testLoader, model, logger)
 
 
@@ -76,6 +77,9 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--model', default="DABNet", help="model name: Context Guided Network (CGNet)")
     parser.add_argument('--dataset', default="cityscapes", help="dataset: cityscapes or camvid")
+    parser.add_argument('--data_root', default="", help="dataset folder")
+    parser.add_argument('--val_file', default="dataset/cityscapes/cityscapes_val_list.txt", help="dataset folder")
+    parser.add_argument('--inform_data_file', default="dataset/inform/cityscapes_inform.pkl", help="dataset folder")
     parser.add_argument('--num_workers', type=int, default=1, help="the number of parallel threads")
     parser.add_argument('--batch_size', type=int, default=1,
                         help=" the batch_size is set to 1 when evaluating or testing")

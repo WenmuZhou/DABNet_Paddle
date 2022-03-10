@@ -81,7 +81,7 @@ def train(args, train_loader, model, criterion, optimizer, scheduler, epoch, log
         epoch_loss.append(loss.item())
         time_taken = time.time() - start_time
 
-        if (iteration + 1) % 10 == 0:
+        if (iteration + 1) % args.print_batch_step == 0:
             logger.info('=====> epoch[{}/{}] iter: [{}/{}] cur_lr: {:.6f} loss: {:.6f} time:{:.4f}'.format(epoch + 1,
                                                                                                            args.max_epochs,
                                                                                                            iteration + 1,
@@ -107,8 +107,8 @@ def train_model(args, logger):
        args: global arguments
     """
     h, w = map(int, args.input_size.split(','))
-    input_size = (h, w)
-    logger.info("=====> input size:{}".format(input_size))
+    args.input_size = (h, w)
+    logger.info("=====> input size:{}".format(args.input_size))
 
     logger.info(args)
 
@@ -131,8 +131,7 @@ def train_model(args, logger):
     logger.info("the number of parameters: {} ==> {} M".format(total_paramters, (total_paramters / 1e6)))
 
     # load data and data augmentation
-    datas, trainLoader, valLoader = build_dataset_train(args.dataset, input_size, args.batch_size, args.train_type,
-                                                        args.random_scale, args.random_mirror, args.num_workers)
+    datas, trainLoader, valLoader = build_dataset_train(args)
 
     logger.info('=====> Dataset statistics')
     logger.info("data['classWeights']: {}".format(datas['classWeights']))
@@ -151,17 +150,17 @@ def train_model(args, logger):
         raise NotImplementedError(
             "This repository now supports two datasets: cityscapes and camvid, {} is not included".format(args.dataset))
 
-    start_epoch = 0
+    start_epoch = 1
 
     # continue training
-    if args.resume:
-        if os.path.isfile(args.resume):
-            checkpoint = paddle.load(args.resume)
+    if args.checkpoint:
+        if os.path.isfile(args.checkpoint):
+            checkpoint = paddle.load(args.checkpoint)
             start_epoch = checkpoint['epoch']
             model.set_state_dict(checkpoint['model'])
-            logger.info("=====> loaded checkpoint '{}' (epoch {})".format(args.resume, checkpoint['epoch']))
+            logger.info("=====> loaded checkpoint '{}' (epoch {})".format(args.checkpoint, checkpoint['epoch']))
         else:
-            logger.info("=====> no checkpoint found at '{}'".format(args.resume))
+            logger.info("=====> no checkpoint found at '{}'".format(args.checkpoint))
 
     model.train()
 
@@ -196,7 +195,7 @@ def train_model(args, logger):
         paddle.save(state, model_file_name)
 
         # validation
-        if epoch % 50 == 0 or epoch == (args.max_epochs - 1):
+        if epoch % args.eval_epoch == 0 or epoch == (args.max_epochs - 1):
             epoches.append(epoch)
             mIOU_val, per_class_iu = val(args, valLoader, model, logger)
             mIOU_val_list.append(mIOU_val)
@@ -247,8 +246,10 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--model', default="DABNet", help="model name: Context Guided Network (CGNet)")
     parser.add_argument('--dataset', default="cityscapes", help="dataset: cityscapes or camvid")
-    parser.add_argument('--train_type', type=str, default="train",
-                        help="ontrain for training on train set, ontrainval for training on train+val set")
+    parser.add_argument('--data_root', default="", help="dataset folder")
+    parser.add_argument('--train_file', default="dataset/cityscapes/cityscapes_train_list.txt", help="dataset folder")
+    parser.add_argument('--val_file', default="dataset/cityscapes/cityscapes_val_list.txt", help="dataset folder")
+    parser.add_argument('--inform_data_file', default="dataset/inform/cityscapes_inform.pkl", help="dataset folder")
     parser.add_argument('--max_epochs', type=int, default=1000,
                         help="the number of epochs: 300 for train set, 350 for train+val set")
     parser.add_argument('--input_size', type=str, default="512,1024", help="input size of model")
@@ -258,12 +259,14 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=4.5e-2, help="initial learning rate")
     parser.add_argument('--batch_size', type=int, default=8, help="the batch size is set to 16 for 2 GPUs")
     parser.add_argument('--savedir', default="./checkpoint/", help="directory to save the model snapshot")
-    parser.add_argument('--resume', type=str, default="",
+    parser.add_argument('--checkpoint', type=str, default="",
                         help="use this file to load last checkpoint for continuing training")
     parser.add_argument('--classes', type=int, default=19,
                         help="the number of classes in the dataset. 19 and 11 for cityscapes and camvid, respectively")
     parser.add_argument('--cuda', type=bool, default=True, help="running on CPU or GPU")
     parser.add_argument('--gpus', type=str, default="0", help="default GPU devices (0,1)")
+    parser.add_argument('--print_batch_step', type=int, default=10, help="print ")
+    parser.add_argument('--eval_epoch', type=int, default=50, help="print ")
     args = parser.parse_args()
 
     if args.dataset == 'cityscapes':
@@ -277,9 +280,6 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError(
             "This repository now supports two datasets: cityscapes and camvid, %s is not included" % args.dataset)
-
-    args.savedir = (args.savedir + args.dataset + '/' + args.model + 'bs'
-                    + str(args.batch_size) + "_" + str(args.train_type) + '/')
 
     if not os.path.exists(args.savedir):
         os.makedirs(args.savedir)

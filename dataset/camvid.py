@@ -124,7 +124,7 @@ class CamVidValDataSet(Dataset):
             # print(img_file)
             label_file = osp.join(self.root, name.split()[1])
             # print(label_file)
-            image_name = name.strip().split()[0].strip().split('/', 1)[1].split('.')[0]
+            image_name = osp.basename(name)
             # print("image_name:  ",image_name)
             self.files.append({
                 "img": img_file,
@@ -211,7 +211,7 @@ class CamVidTrainInform:
         The class is employed for tackle class imbalance.
     """
 
-    def __init__(self, data_dir='', classes=11, train_set_file="",
+    def __init__(self, data_dir='', classes=11,
                  inform_data_file="", normVal=1.10):
         """
         Args:
@@ -238,7 +238,7 @@ class CamVidTrainInform:
         for i in range(self.classes):
             self.classWeights[i] = 1 / (np.log(self.normVal + normHist[i]))
 
-    def readWholeTrainSet(self, fileName, train_flag=True):
+    def readWholeTrainSet(self, data_list, train_flag=True):
         """to read the whole train set of current dataset.
         Args:
         fileName: train set file that stores the image locations
@@ -251,44 +251,45 @@ class CamVidTrainInform:
         no_files = 0
         min_val_al = 0
         max_val_al = 0
-        with open(self.data_dir + '/' + fileName, 'r') as textFile:
-            # with open(fileName, 'r') as textFile:
-            for line in textFile:
-                # we expect the text file to contain the data in following format
-                # <RGB Image> <Label Image>
-                line_arr = line.split()
-                img_file = ((self.data_dir).strip() + '/' + line_arr[0].strip()).strip()
-                label_file = ((self.data_dir).strip() + '/' + line_arr[1].strip()).strip()
+        for fileName in data_list:
+            with open(fileName, 'r') as textFile:
+                # with open(fileName, 'r') as textFile:
+                for line in textFile:
+                    # we expect the text file to contain the data in following format
+                    # <RGB Image> <Label Image>
+                    line_arr = line.split()
+                    img_file = ((self.data_dir).strip() + '/' + line_arr[0].strip()).strip()
+                    label_file = ((self.data_dir).strip() + '/' + line_arr[1].strip()).strip()
 
-                label_img = cv2.imread(label_file, 0)
-                unique_values = np.unique(label_img)
-                max_val = max(unique_values)
-                min_val = min(unique_values)
+                    label_img = cv2.imread(label_file, 0)
+                    unique_values = np.unique(label_img)
+                    max_val = max(unique_values)
+                    min_val = min(unique_values)
 
-                max_val_al = max(max_val, max_val_al)
-                min_val_al = min(min_val, min_val_al)
+                    max_val_al = max(max_val, max_val_al)
+                    min_val_al = min(min_val, min_val_al)
 
-                if train_flag == True:
-                    hist = np.histogram(label_img, self.classes, [0, self.classes - 1])
-                    global_hist += hist[0]
+                    if train_flag == True:
+                        hist = np.histogram(label_img, self.classes, [0, self.classes - 1])
+                        global_hist += hist[0]
 
-                    rgb_img = cv2.imread(img_file)
-                    self.mean[0] += np.mean(rgb_img[:, :, 0])
-                    self.mean[1] += np.mean(rgb_img[:, :, 1])
-                    self.mean[2] += np.mean(rgb_img[:, :, 2])
+                        rgb_img = cv2.imread(img_file)
+                        self.mean[0] += np.mean(rgb_img[:, :, 0])
+                        self.mean[1] += np.mean(rgb_img[:, :, 1])
+                        self.mean[2] += np.mean(rgb_img[:, :, 2])
 
-                    self.std[0] += np.std(rgb_img[:, :, 0])
-                    self.std[1] += np.std(rgb_img[:, :, 1])
-                    self.std[2] += np.std(rgb_img[:, :, 2])
+                        self.std[0] += np.std(rgb_img[:, :, 0])
+                        self.std[1] += np.std(rgb_img[:, :, 1])
+                        self.std[2] += np.std(rgb_img[:, :, 2])
 
-                else:
-                    print("we can only collect statistical information of train set, please check")
+                    else:
+                        print("we can only collect statistical information of train set, please check")
 
-                if max_val > (self.classes - 1) or min_val < 0:
-                    print('Labels can take value between 0 and number of classes.')
-                    print('Some problem with labels. Please check. label_set:', unique_values)
-                    print('Label Image ID: ' + label_file)
-                no_files += 1
+                    if max_val > (self.classes - 1) or min_val < 0:
+                        print('Labels can take value between 0 and number of classes.')
+                        print('Some problem with labels. Please check. label_set:', unique_values)
+                        print('Label Image ID: ' + label_file)
+                    no_files += 1
 
         # divide the mean and std values by the sample space size
         self.mean /= no_files
@@ -298,12 +299,12 @@ class CamVidTrainInform:
         self.compute_class_weights(global_hist)
         return 0
 
-    def collectDataAndSave(self):
+    def collectDataAndSave(self,data_list):
         """ To collect statistical information of train set and then save it.
         The file train.txt should be inside the data directory.
         """
         print('Processing training data')
-        return_val = self.readWholeTrainSet(fileName=self.train_set_file)
+        return_val = self.readWholeTrainSet(data_list)
 
         print('Pickling data')
         if return_val == 0:

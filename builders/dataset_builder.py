@@ -5,27 +5,23 @@ from dataset.cityscapes import CityscapesDataSet, CityscapesTrainInform, Citysca
 from dataset.camvid import CamVidDataSet, CamVidValDataSet, CamVidTrainInform, CamVidTestDataSet
 
 
-def build_dataset_train(dataset, input_size, batch_size, train_type, random_scale, random_mirror, num_workers):
-    data_dir = os.path.join('./dataset/', dataset)
-    dataset_list = os.path.join(dataset, '_trainval_list.txt')
-    train_data_list = os.path.join(data_dir, dataset + '_' + train_type + '_list.txt')
-    val_data_list = os.path.join(data_dir, dataset + '_val' + '_list.txt')
-    inform_data_file = os.path.join('./dataset/inform/', dataset + '_inform.pkl')
+def build_dataset_train(args):
+    train_data_list = args.train_file
+    val_data_list = args.val_file
+    inform_data_file = args.inform_data_file
 
     # inform_data_file collect the information of mean, std and weigth_class
     if not os.path.isfile(inform_data_file):
-        print("%s is not found" % (inform_data_file))
-        if dataset == "cityscapes":
-            dataCollect = CityscapesTrainInform(data_dir, 19, train_set_file=dataset_list,
-                                                inform_data_file=inform_data_file)
-        elif dataset == 'camvid':
-            dataCollect = CamVidTrainInform(data_dir, 11, train_set_file=dataset_list,
-                                            inform_data_file=inform_data_file)
+        print("{} is not found".format(inform_data_file))
+        if args.dataset == "cityscapes":
+            dataCollect = CityscapesTrainInform(args.data_root, 19, inform_data_file=inform_data_file)
+        elif args.dataset == 'camvid':
+            dataCollect = CamVidTrainInform(args.data_root, 11, inform_data_file=inform_data_file)
         else:
             raise NotImplementedError(
-                "This repository now supports two datasets: cityscapes and camvid, %s is not included" % dataset)
+                "This repository now supports two datasets: cityscapes and camvid, {} is not included".format(args.dataset))
 
-        datas = dataCollect.collectDataAndSave()
+        datas = dataCollect.collectDataAndSave(train_data_list, val_data_list)
         if datas is None:
             print("error while pickling data. Please check.")
             exit(-1)
@@ -33,54 +29,48 @@ def build_dataset_train(dataset, input_size, batch_size, train_type, random_scal
         print("find file: ", str(inform_data_file))
         datas = pickle.load(open(inform_data_file, "rb"))
 
-    if dataset == "cityscapes":
-
+    if args.dataset == "cityscapes":
         trainLoader = DataLoader(
-            CityscapesDataSet(data_dir, train_data_list, crop_size=input_size, scale=random_scale,
-                              mirror=random_mirror, mean=datas['mean']),
-            batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
+            CityscapesDataSet(args.data_root, train_data_list, crop_size=args.input_size, scale=args.random_scale,
+                              mirror=args.random_mirror, mean=datas['mean']),
+            batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, drop_last=True)
 
         valLoader = DataLoader(
-            CityscapesValDataSet(data_dir, val_data_list, f_scale=1, mean=datas['mean']),
-            batch_size=1, shuffle=True, num_workers=num_workers,
+            CityscapesValDataSet(args.data_root, val_data_list, f_scale=1, mean=datas['mean']),
+            batch_size=1, shuffle=True, num_workers=args.num_workers,
             drop_last=True)
 
         return datas, trainLoader, valLoader
 
-    elif dataset == "camvid":
-
+    elif args.dataset == "camvid":
         trainLoader = DataLoader(
-            CamVidDataSet(data_dir, train_data_list, crop_size=input_size, scale=random_scale,
-                          mirror=random_mirror, mean=datas['mean']),
-            batch_size=batch_size, shuffle=True, num_workers=num_workers,drop_last=True)
+            CamVidDataSet(args.data_root, train_data_list, crop_size=args.input_size, scale=args.random_scale,
+                          mirror=args.random_mirror, mean=datas['mean']),
+            batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,drop_last=True)
 
         valLoader = DataLoader(
-            CamVidValDataSet(data_dir, val_data_list, f_scale=1, mean=datas['mean']),
-            batch_size=1, shuffle=True, num_workers=num_workers)
+            CamVidValDataSet(args.data_root, val_data_list, f_scale=1, mean=datas['mean']),
+            batch_size=1, shuffle=True, num_workers=args.num_workers)
 
         return datas, trainLoader, valLoader
 
 
-def build_dataset_test(dataset, num_workers, none_gt=False):
-    data_dir = os.path.join('./dataset/', dataset)
-    dataset_list = os.path.join(dataset, '_trainval_list.txt')
-    test_data_list = os.path.join(data_dir, dataset + '_test' + '_list.txt')
-    inform_data_file = os.path.join('./dataset/inform/', dataset + '_inform.pkl')
+def build_dataset_test(args, none_gt=False):
+    val_data_list = args.val_file
+    inform_data_file = args.inform_data_file
 
     # inform_data_file collect the information of mean, std and weigth_class
     if not os.path.isfile(inform_data_file):
-        print("%s is not found" % (inform_data_file))
-        if dataset == "cityscapes":
-            dataCollect = CityscapesTrainInform(data_dir, 19, train_set_file=dataset_list,
-                                                inform_data_file=inform_data_file)
-        elif dataset == 'camvid':
-            dataCollect = CamVidTrainInform(data_dir, 11, train_set_file=dataset_list,
-                                            inform_data_file=inform_data_file)
+        print("{} is not found".format(inform_data_file))
+        if args.dataset == "cityscapes":
+            dataCollect = CityscapesTrainInform(args.data_root, 19, inform_data_file=inform_data_file)
+        elif args.dataset == 'camvid':
+            dataCollect = CamVidTrainInform(args.data_root, 11, inform_data_file=inform_data_file)
         else:
             raise NotImplementedError(
-                "This repository now supports two datasets: cityscapes and camvid, %s is not included" % dataset)
+                "This repository now supports two datasets: cityscapes and camvid, {} is not included".format(dataset))
         
-        datas = dataCollect.collectDataAndSave()
+        datas = dataCollect.collectDataAndSave(val_data_list)
         if datas is None:
             print("error while pickling data. Please check.")
             exit(-1)
@@ -88,25 +78,23 @@ def build_dataset_test(dataset, num_workers, none_gt=False):
         print("find file: ", str(inform_data_file))
         datas = pickle.load(open(inform_data_file, "rb"))
 
-    if dataset == "cityscapes":
+    if args.dataset == "cityscapes":
         # for cityscapes, if test on validation set, set none_gt to False
         # if test on the test set, set none_gt to True
         if none_gt:
             testLoader = DataLoader(
-                CityscapesTestDataSet(data_dir, test_data_list, mean=datas['mean']),
-                batch_size=1, shuffle=False, num_workers=num_workers)
+                CityscapesTestDataSet(args.data_root, val_data_list, mean=datas['mean']),
+                batch_size=1, shuffle=False, num_workers=args.num_workers)
         else:
-            test_data_list = os.path.join(data_dir, dataset + '_val' + '_list.txt')
             testLoader = DataLoader(
-                CityscapesValDataSet(data_dir, test_data_list, mean=datas['mean']),
-                batch_size=1, shuffle=False, num_workers=num_workers)
+                CityscapesValDataSet(args.data_root, val_data_list, mean=datas['mean']),
+                batch_size=1, shuffle=False, num_workers=args.num_workers)
 
         return datas, testLoader
 
-    elif dataset == "camvid":
-
+    elif args.dataset == "camvid":
         testLoader = DataLoader(
-            CamVidValDataSet(data_dir, test_data_list, mean=datas['mean']),
-            batch_size=1, shuffle=False, num_workers=num_workers)
+            CamVidValDataSet(args.data_root, val_data_list, mean=datas['mean']),
+            batch_size=1, shuffle=False, num_workers=args.num_workers)
 
         return datas, testLoader
