@@ -162,5 +162,5 @@ class DABNet(nn.Layer):
         output2 = self.DAB_Block_2(output2_0)
         output2_cat = self.bn_prelu_3(paddle.concat([output2, output2_0, down_3], 1))
         out = self.classifier(output2_cat)
-        out = F.interpolate(out, scale_factor=8, mode='bilinear', align_corners=False)
+        out = F.interpolate(out, input.shape[2:], mode='bilinear', align_corners=False)
         return out
